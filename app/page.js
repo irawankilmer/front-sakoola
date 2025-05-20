@@ -1,95 +1,127 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client';
+import { useEffect, useState } from 'react';
+import socket from "@/app/lib/socket";
 
-export default function Home() {
+
+export default function PostPage() {
+  const [posts, setPosts] = useState([]);
+  const [form, setForm] = useState({ id: null, title: '', content: '' });
+
+  // Ambil data awal
+  useEffect(() => {
+    fetch('http://localhost:5000/post')
+      .then((res) => res.json())
+      .then(setPosts);
+  }, []);
+
+  // Listener realtime
+  useEffect(() => {
+    socket.on('new_post', (post) => {
+      setPosts((prev) => [post, ...prev]);
+    });
+
+    socket.on('updated_post', (post) => {
+      setPosts((prev) => prev.map((p) => (p.id === post.id ? post : p)));
+    });
+
+    socket.on('deleted_post', (post) => {
+      setPosts((prev) => prev.filter((p) => p.id !== post.id));
+    });
+
+    return () => {
+      socket.off('new_post');
+      socket.off('updated_post');
+      socket.off('deleted_post');
+    };
+  }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const url = form.id
+      ? `http://localhost:5000/post/${form.id}`
+      : 'http://localhost:5000/post';
+
+    const method = form.id ? 'PUT' : 'POST';
+
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: form.title,
+        content: form.content,
+      }),
+    });
+
+    if (res.ok) {
+      setForm({ id: null, title: '', content: '' });
+    }
+  };
+
+  const handleDelete = async (id) => {
+    await fetch(`http://localhost:5000/post/${id}`, { method: 'DELETE' });
+  };
+
+  const handleEdit = (post) => {
+    setForm(post);
+  };
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol>
-          <li>
-            Get started by editing <code>app/page.js</code>.
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <div className="container py-4">
+      <h1 className="mb-4">Realtime Posts (Socket.IO + Bootstrap 5)</h1>
 
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
+      <form onSubmit={handleSubmit} className="mb-5">
+        <div className="mb-3">
+          <input
+            className="form-control"
+            placeholder="Title"
+            value={form.title}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
+          />
         </div>
-      </main>
-      <footer className={styles.footer}>
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+        <div className="mb-3">
+          <textarea
+            className="form-control"
+            placeholder="Content"
+            value={form.content}
+            onChange={(e) => setForm({ ...form, content: e.target.value })}
           />
-          Learn
-        </a>
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        </div>
+        <button type="submit" className="btn btn-primary">
+          {form.id ? 'Update' : 'Create'} Post
+        </button>
+        {form.id && (
+          <button
+            type="button"
+            className="btn btn-secondary ms-2"
+            onClick={() => setForm({ id: null, title: '', content: '' })}
+          >
+            Cancel
+          </button>
+        )}
+      </form>
+
+      <div className="list-group">
+        {posts.map((post) => (
+          <div key={post.id} className="list-group-item">
+            <h5>{post.title}</h5>
+            <p>{post.content}</p>
+            <div>
+              <button
+                className="btn btn-sm btn-outline-primary me-2"
+                onClick={() => handleEdit(post)}
+              >
+                Edit
+              </button>
+              <button
+                className="btn btn-sm btn-outline-danger"
+                onClick={() => handleDelete(post.id)}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
