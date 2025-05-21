@@ -9,7 +9,7 @@ export default function PostPage() {
 
   // Ambil data awal
   useEffect(() => {
-    fetch('http://localhost:5000/post')
+    fetch('http://localhost:8080/api/v1/post')
       .then((res) => res.json())
       .then(setPosts);
   }, []);
@@ -38,8 +38,8 @@ export default function PostPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const url = form.id
-      ? `http://localhost:5000/post/${form.id}`
-      : 'http://localhost:5000/post';
+      ? `http://localhost:8080/api/v1/post/${form.id}`
+      : 'http://localhost:8080/api/v1/post';
 
     const method = form.id ? 'PUT' : 'POST';
 
@@ -58,7 +58,7 @@ export default function PostPage() {
   };
 
   const handleDelete = async (id) => {
-    await fetch(`http://localhost:5000/post/${id}`, { method: 'DELETE' });
+    await fetch(`http://localhost:8080/api/v1/post/${id}`, { method: 'DELETE' });
   };
 
   const handleEdit = (post) => {
